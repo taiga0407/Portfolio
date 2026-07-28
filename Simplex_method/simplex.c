@@ -15,13 +15,17 @@ void check_data(){
         fprintf(stderr, "%2dx_%d", objective_function[i], i);
         fprintf(stderr, " + ");
     }
+    fprintf(stderr, "%d", objective_function[var]);
+
     fprintf(stderr, "  (最大化)\n");
 
     fprintf(stderr, "制約条件\n");
     for(int i = 0; i < con; i ++){
         for(int j = 0; j < var; j ++){
             fprintf(stderr, "%2dx_%d", constraints[i][j], j);
-            fprintf(stderr, " + ");
+                if(j != var - 1){
+                    fprintf(stderr, " + ");
+            }
         }
         fprintf(stderr, " = %2d\n", constraints[i][var + 1]);
     }
@@ -36,6 +40,8 @@ void in_data(){
         fprintf(stderr, "x_%dの係数：", i);
         scanf("%d", &objective_function[i]);
     }
+    fprintf(stderr, "定数：");
+    scanf("%d", &objective_function[var+1]);
 
     fprintf(stderr, "制約条件の式の数の数を入力してください．-> ");
     scanf("%d", &con);
