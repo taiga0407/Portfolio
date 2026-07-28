@@ -29,6 +29,9 @@ void check_data(){
         }
         fprintf(stderr, " = %2d\n", constraints[i][var + 1]);
     }
+
+    fprintf(stderr, " x_i>= 0  (i = 1,2,...,%d)\n", var);
+
 }
 
 void in_data(){
