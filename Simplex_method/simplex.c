@@ -13,19 +13,12 @@ double constraints[MAX_CONSTRAINTS][MAX_VARIABLES + 1];  //制約条件
 
 double phase1_tableau[MAX_CONSTRAINTS + 2][MAX_TABLEAU_COLUMNS];  //第１段階シンプレックスタブロ
 
+double phase2_tableau[MAX_CONSTRAINTS + 1][MAX_TABLEAU_COLUMNS];  //第２段階シンプレックスタブロ
+
 int basis[MAX_CONSTRAINTS];  //基底変数を保持
 
 int var;  //変数の数
 int con;  //制約条件の数
-
-// void print_number(double value)
-// {
-//     if (value == (int)value) {
-//         printf("%d", (int)value);
-//     } else {
-//         printf("%f", value);
-//     }
-// }
 
 void check_data(){
     fprintf(stderr, "目的関数  z = ");
@@ -80,7 +73,7 @@ void in_data(){
     check_data();
 }
 
-void print_phase1_tableau(){  //タブロの表示
+void print_phase1_tableau(){  //phase1タブロの表示
     fprintf(stderr, "\n            定数    ");
     for(int i = 1; i <= var + con; i ++){
         fprintf(stderr, "  -x_%d    ", i);
@@ -145,7 +138,7 @@ void creat_inintial_tableau(){
     print_phase1_tableau();
 }
 
-void pivot(int entering, int leaving){
+void phase1_pivot(int entering, int leaving){
     double tmp[MAX_CONSTRAINTS + 2][MAX_TABLEAU_COLUMNS];
 
     for(int i = 0; i < MAX_CONSTRAINTS + 2; i ++){
@@ -192,12 +185,10 @@ void pivot(int entering, int leaving){
         }
     }
 
-    //-wの行の操作
-
     print_phase1_tableau();
 }
 
-void determine_entering_and_leaving_variable(){
+void phase1_determine_entering_and_leaving_variable(){
     int entering_variable;  //交換する非基底変数
     int leaving_variable;  //交換する基底変数
 
@@ -227,8 +218,16 @@ void determine_entering_and_leaving_variable(){
     double min = phase1_tableau[2][0] / phase1_tableau[2][entering_variable];
     int min_num = 2;
 
+    for(int i = 0; i < con; i ++){  //minの初期値
+        if(phase1_tableau[2 + i][entering_variable] > 0){
+            min = phase1_tableau[2 + i][0] / phase1_tableau[2 + i][entering_variable];
+            min_num = 2 + i;
+            break;
+        }
+    }
+
     for(int i = 0; i < con; i ++){
-        if(min > phase1_tableau[2 + i][0] / phase1_tableau[2 + i][entering_variable]){
+        if(phase1_tableau[2 + i][entering_variable] > 0 && min > phase1_tableau[2 + i][0] / phase1_tableau[2 + i][entering_variable]){  //最小添え字規則
             min = phase1_tableau[2 + i][0] / phase1_tableau[2 + i][entering_variable];
             min_num = 2 + i;
         }
@@ -237,7 +236,7 @@ void determine_entering_and_leaving_variable(){
 
     fprintf(stderr, "\nx_%dとx_%dの交換\n", entering_variable, leaving_variable);
 
-    pivot(entering_variable, leaving_variable);
+    phase1_pivot(entering_variable, leaving_variable);
 }
 
 int phase1(){
@@ -245,7 +244,7 @@ int phase1(){
     double previous_value_of_negative_w = phase1_tableau[1][0];  //前回の-wの目的関数値
 
     while(fabs(previous_value_of_negative_w) > EPSILON){
-        determine_entering_and_leaving_variable();
+        phase1_determine_entering_and_leaving_variable();
         if(previous_value_of_negative_w > phase1_tableau[1][0]){
             fprintf(stderr, "\n実行不可能です\n");
             return 1;
@@ -256,15 +255,193 @@ int phase1(){
     return 0;
 }
 
+void print_phase2_tableau(){  //phase2タブロの表示
+    fprintf(stderr, "\n            定数    ");
+    for(int i = 1; i <= var; i ++){
+        fprintf(stderr, "  -x_%d    ", i);
+    }
+    fprintf(stderr, "\n");
+
+    fprintf(stderr, " z   = ");
+    for(int i = 0; i <= var; i ++){
+        fprintf(stderr," %8.2f ", phase2_tableau[0][i]);
+    }
+    fprintf(stderr, "\n");
+
+    for(int i = 0; i < con; i ++){
+        fprintf(stderr, " x_%d = ", basis[i]);
+        for(int j = 0; j <= var; j ++){
+            fprintf(stderr," %8.2f ", phase2_tableau[1 + i][j]);
+        }
+        fprintf(stderr, "\n");
+    }
+}
+
+void phase2_pivot(int entering, int leaving){
+    double tmp[MAX_CONSTRAINTS + 1][MAX_TABLEAU_COLUMNS];
+
+    for(int i = 0; i < MAX_CONSTRAINTS + 1; i ++){
+        for(int j = 0; j < MAX_TABLEAU_COLUMNS; j ++){
+            tmp[i][j] = phase2_tableau[i][j];
+        }
+    }
+
+    //交換する基底変数の行の設定
+    int leaving_line;
+    for(int i = 0; i < con; i ++){
+        if(basis[i] == leaving){
+            leaving_line = 1 + i;
+        }
+    }
+
+    basis[leaving_line - 1] = entering;
+
+    for(int i = 0; i <= var; i ++){
+        phase2_tableau[leaving_line][i] /= tmp[leaving_line][entering];
+    }
+    phase2_tableau[leaving_line][leaving] = 1 / tmp[leaving_line][entering];
+    phase2_tableau[leaving_line][entering] = NAN;
+
+    //残りの規定変数の行の操作
+    for(int i = 0; i < con; i ++){
+        if(basis[i] != entering){
+            for(int j = 0; j <= var; j ++){
+                phase2_tableau[1 + i][j] -= phase2_tableau[leaving_line][j] * tmp[1 + i][entering];
+                if(j == leaving){
+                    phase2_tableau[1 + i][j] = - phase2_tableau[leaving_line][j] * tmp[1 + i][entering];
+                }
+            }
+        }
+    }
+
+    //zの行の操作
+    for(int j = 0; j <= var; j ++){
+        phase2_tableau[0][j] -= phase2_tableau[leaving_line][j] * tmp[0][entering];
+        if(j == leaving){
+            phase2_tableau[0][j] = - tmp[0][entering] * phase2_tableau[leaving_line][leaving];
+        }
+    }
+
+    print_phase2_tableau();
+}
+
+void phase2_determine_entering_and_leaving_variable(){
+    int entering_variable;  //交換する非基底変数
+    int leaving_variable;  //交換する基底変数
+
+    //entering_variableの決定
+    entering_variable = -1;
+    for(int i= 1; i <= var; i ++){
+        for(int j = 0; j < con; j ++){
+            if(i == basis[j]){
+                break;
+            }
+            if(j == con -1){
+                entering_variable = i;
+            }
+        }
+        if(entering_variable != -1){
+            break;
+        }
+    }
+
+    for(int i = 1; i <= var; i ++){
+        if(phase2_tableau[0][i] != NAN && phase2_tableau[0][entering_variable] > phase2_tableau[0][i]){
+            entering_variable = i;
+        }
+    }
+
+    //leaving_variableの決定
+    double min;
+    int min_num;
+    for(int i = 0; i < con; i ++){  //minの初期値
+        if(phase2_tableau[1 + i][entering_variable] > 0){
+            min = phase2_tableau[1 + i][0] / phase2_tableau[1 + i][entering_variable];
+            min_num = 1 + i;
+            break;
+        }
+    }
+
+    for(int i = 0; i < con; i ++){
+        if(phase2_tableau[1 + i][entering_variable] > 0 && min > phase2_tableau[1 + i][0] / phase2_tableau[1 + i][entering_variable]){  //最小添え字規則
+            min = phase2_tableau[1 + i][0] / phase2_tableau[1 + i][entering_variable];
+            min_num = 1 + i;
+        }
+    }
+    leaving_variable = basis[min_num  - 1];
+
+    fprintf(stderr, "\nx_%dとx_%dの交換\n", entering_variable, leaving_variable);
+
+    phase2_pivot(entering_variable, leaving_variable);
+}
+
+void print_answer(){
+    int flag;
+    fprintf(stderr, " 最適解は \n");
+    for(int i = 1; i <= var; i ++){
+        flag = 0;
+        for(int j = 0; j < con; j ++){
+            if(i == basis[j]){
+                fprintf(stderr, " x_%d= %lf ", i, phase2_tableau[1 + j][0]);
+                flag = 1;
+                break;
+            }
+        }
+        if(flag == 0){
+            fprintf(stderr, " x_%d= %d ", i, 0);
+        }
+    }
+    fprintf(stderr, "\n");
+
+    fprintf(stderr, "最適値は %lf \n", phase2_tableau[0][0]);
+}
+
+int has_negative_coefficient(){
+    for(int i = 1; i <= var; i++){
+        if(phase2_tableau[0][i] < 0){
+            return 1;
+        }
+    }
+    return 0;
+}
+
+void phase2(){
+    fprintf(stderr, "\nphase2\n");
+
+    for(int i = 0; i < MAX_CONSTRAINTS + 1; i ++){  //配列phase2_tableauの初期化
+        for(int j = 0; j < MAX_TABLEAU_COLUMNS; j ++){
+            phase2_tableau[i][j] = NAN;
+        }
+    }
+
+    //phase2_tableauの設定
+    for(int i = 0; i <= var; i ++){
+        phase2_tableau[0][i] = phase1_tableau[0][i];
+    }
+    for(int i = 0; i < con; i ++){
+        for(int j = 0; j <= var; j ++){
+            phase2_tableau[1 + i][j] = phase1_tableau[2 + i][j];
+        }
+    }
+    print_phase2_tableau();
+
+    while(has_negative_coefficient()){
+        phase2_determine_entering_and_leaving_variable();
+    }
+
+    print_answer();
+}
+
 int main(void){
 
     in_data();  //データの入力
 
     creat_inintial_tableau();  //初期タブロの作成
 
-    phase1();  //フェーズ1
+    if(phase1() == 0){
+        phase2();  //フェーズ2
+    }
 
-    // pivot(4,7);
 
     return 0;
 }
