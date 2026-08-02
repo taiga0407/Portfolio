@@ -101,7 +101,7 @@ void print_phase1_tableau(){  //phase1タブロの表示
     }
 }
 
-void creat_inintial_tableau(){
+void create_initial_tableau(){
     //配列basisの初期化と決定
     for(int i = 0; i < MAX_CONSTRAINTS; i ++){
         basis[i] = -1;
@@ -209,7 +209,7 @@ void phase1_determine_entering_and_leaving_variable(){
     }
 
     for(int i = 1; i <= var + con; i ++){
-        if(phase1_tableau[1][i] != NAN && phase1_tableau[1][entering_variable] > phase1_tableau[1][i]){
+        if(!isnan(phase1_tableau[1][i]) && phase1_tableau[1][entering_variable] > phase1_tableau[1][i]){
             entering_variable = i;
         }
     }
@@ -346,7 +346,7 @@ void phase2_determine_entering_and_leaving_variable(){
     }
 
     for(int i = 1; i <= var; i ++){
-        if(phase2_tableau[0][i] != NAN && phase2_tableau[0][entering_variable] > phase2_tableau[0][i]){
+        if(!isnan(phase2_tableau[0][i]) && phase2_tableau[0][entering_variable] > phase2_tableau[0][i]){
             entering_variable = i;
         }
     }
@@ -436,7 +436,7 @@ int main(void){
 
     in_data();  //データの入力
 
-    creat_inintial_tableau();  //初期タブロの作成
+    create_initial_tableau();  //初期タブロの作成
 
     if(phase1() == 0){
         phase2();  //フェーズ2
