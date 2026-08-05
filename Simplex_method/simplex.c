@@ -99,6 +99,28 @@ void print_phase1_tableau(){  //phase1タブロの表示
     }
 }
 
+void print_phase2_tableau(){  //phase2タブロの表示
+    fprintf(stderr, "\n            定数    ");
+    for(int i = 1; i <= var; i ++){
+        fprintf(stderr, "  -x_%d    ", i);
+    }
+    fprintf(stderr, "\n");
+
+    fprintf(stderr, " z   = ");
+    for(int i = 0; i <= var; i ++){
+        fprintf(stderr," %8.2f ", tableau[0][i]);
+    }
+    fprintf(stderr, "\n");
+
+    for(int i = 0; i < con; i ++){
+        fprintf(stderr, " x_%d = ", basis[i]);
+        for(int j = 0; j <= var; j ++){
+            fprintf(stderr," %8.2f ", tableau[2 + i][j]);
+        }
+        fprintf(stderr, "\n");
+    }
+}
+
 void create_initial_tableau(){
     //配列basisの初期化と決定
     for(int i = 0; i < MAX_CONSTRAINTS; i ++){
@@ -136,7 +158,7 @@ void create_initial_tableau(){
     print_phase1_tableau();
 }
 
-void phase1_pivot(int entering, int leaving){
+void pivot(int entering, int leaving, int phase){
     double tmp[MAX_CONSTRAINTS + 2][MAX_TABLEAU_COLUMNS];
 
     for(int i = 0; i < MAX_CONSTRAINTS + 2; i ++){
@@ -155,7 +177,7 @@ void phase1_pivot(int entering, int leaving){
 
     basis[leaving_line - 2] = entering;
 
-    for(int i = 0; i <= var + con; i ++){
+    for(int i = 0; i <= var + phase; i ++){
         tableau[leaving_line][i] /= tmp[leaving_line][entering];
     }
     tableau[leaving_line][leaving] = 1 / tmp[leaving_line][entering];
@@ -164,7 +186,7 @@ void phase1_pivot(int entering, int leaving){
     //残りの規定変数の行の操作
     for(int i = 0; i < con; i ++){
         if(basis[i] != entering){
-            for(int j = 0; j <= var + con; j ++){
+            for(int j = 0; j <= var + phase; j ++){
                 tableau[2 + i][j] -= tableau[leaving_line][j] * tmp[2 + i][entering];
                 if(j == leaving){
                     tableau[2 + i][j] = - tableau[leaving_line][j] * tmp[2 + i][entering];
@@ -183,7 +205,11 @@ void phase1_pivot(int entering, int leaving){
         }
     }
 
-    print_phase1_tableau();
+    if(phase == con){
+        print_phase1_tableau();
+    }else{
+        print_phase2_tableau();
+    }
 }
 
 void phase1_determine_entering_and_leaving_variable(){
@@ -234,7 +260,7 @@ void phase1_determine_entering_and_leaving_variable(){
 
     fprintf(stderr, "\nx_%dとx_%dの交換\n", entering_variable, leaving_variable);
 
-    phase1_pivot(entering_variable, leaving_variable);
+    pivot(entering_variable, leaving_variable, con);
 }
 
 int phase1(){
@@ -251,76 +277,6 @@ int phase1(){
     }
     fprintf(stderr, "\n実行可能です\n");
     return 0;
-}
-
-void print_phase2_tableau(){  //phase2タブロの表示
-    fprintf(stderr, "\n            定数    ");
-    for(int i = 1; i <= var; i ++){
-        fprintf(stderr, "  -x_%d    ", i);
-    }
-    fprintf(stderr, "\n");
-
-    fprintf(stderr, " z   = ");
-    for(int i = 0; i <= var; i ++){
-        fprintf(stderr," %8.2f ", tableau[0][i]);
-    }
-    fprintf(stderr, "\n");
-
-    for(int i = 0; i < con; i ++){
-        fprintf(stderr, " x_%d = ", basis[i]);
-        for(int j = 0; j <= var; j ++){
-            fprintf(stderr," %8.2f ", tableau[2 + i][j]);
-        }
-        fprintf(stderr, "\n");
-    }
-}
-
-void phase2_pivot(int entering, int leaving){
-    double tmp[MAX_CONSTRAINTS + 2][MAX_TABLEAU_COLUMNS];
-
-    for(int i = 0; i < MAX_CONSTRAINTS + 2; i ++){
-        for(int j = 0; j < MAX_TABLEAU_COLUMNS; j ++){
-            tmp[i][j] = tableau[i][j];
-        }
-    }
-
-    //交換する基底変数の行の設定
-    int leaving_line;
-    for(int i = 0; i < con; i ++){
-        if(basis[i] == leaving){
-            leaving_line = 2 + i;
-        }
-    }
-
-    basis[leaving_line - 2] = entering;
-
-    for(int i = 0; i <= var; i ++){
-        tableau[leaving_line][i] /= tmp[leaving_line][entering];
-    }
-    tableau[leaving_line][leaving] = 1 / tmp[leaving_line][entering];
-    tableau[leaving_line][entering] = NAN;
-
-    //残りの規定変数の行の操作
-    for(int i = 0; i < con; i ++){
-        if(basis[i] != entering){
-            for(int j = 0; j <= var; j ++){
-                tableau[2 + i][j] -= tableau[leaving_line][j] * tmp[2 + i][entering];
-                if(j == leaving){
-                    tableau[2 + i][j] = - tableau[leaving_line][j] * tmp[2 + i][entering];
-                }
-            }
-        }
-    }
-
-    //zの行の操作
-    for(int j = 0; j <= var; j ++){
-        tableau[0][j] -= tableau[leaving_line][j] * tmp[0][entering];
-        if(j == leaving){
-            tableau[0][j] = - tmp[0][entering] * tableau[leaving_line][leaving];
-        }
-    }
-
-    print_phase2_tableau();
 }
 
 void phase2_determine_entering_and_leaving_variable(){
@@ -370,7 +326,7 @@ void phase2_determine_entering_and_leaving_variable(){
 
     fprintf(stderr, "\nx_%dとx_%dの交換\n", entering_variable, leaving_variable);
 
-    phase2_pivot(entering_variable, leaving_variable);
+    pivot(entering_variable, leaving_variable, 0);
 }
 
 void print_answer(){
@@ -394,7 +350,7 @@ void print_answer(){
     }
     printf("\n");
 
-    printf("最適値は %lf\n", tableau[0][0]);
+    printf("最適値は %lf", tableau[0][0]);
 }
 
 int has_negative_coefficient(){
