@@ -126,7 +126,7 @@ gcc simplex.c
 ## Execute
 
 ```bash
-./simplex < in1.txt
+./simplex < examples/in1.txt
 ```
 
 実行すると，変数数，目的関数，制約条件を入力できます．
